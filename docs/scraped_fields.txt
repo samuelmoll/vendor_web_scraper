@@ -1,0 +1,12 @@
+- `name`: The product name, but this field should USUALLY be shorter than the description (generally the first few words of the descripton) and may need to be manually adjusted. If in doubt, make the description and name the same.
+- `description`: The product description, usually the product name
+- `brand`: The company making the product
+- `remote_image`: A link to the product image if available
+- `keywords`: Put the category/categories in this field, as a string of comma separated values
+- `link`: The scraped URL. Easy.
+- `units`: Number of items per item. May be written as a number in a bag, case, etc. and will usually be close to the price of the item.
+- `pricing_updated`: The advertised price
+- `in_stock`: If in stock
+- `lead time`: Lead time if out of stock
+- `external_stock`: The number available for local or global shipping
+- `parameters`: This is the information usually presented ina  table. This will vary between types of parts, so just store it as a JSON string of key-value pairs and I will modify the exporters to include this information if I think its necessary.

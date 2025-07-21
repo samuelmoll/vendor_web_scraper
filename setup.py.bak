@@ -1,0 +1,58 @@
+"""Setup script for vendor_web_scraper package."""
+
+from setuptools import setup, find_packages
+
+setup(
+    name="vendor_web_scraper",
+    version="0.1.0",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+    install_requires=[
+        "requests>=2.28.0",
+        "beautifulsoup4>=4.11.0",
+        "lxml>=4.9.0",
+        "pandas>=1.5.0",
+        "pydantic>=1.10.0",
+        "selenium>=4.8.0",
+        "fake-useragent>=1.2.0",
+        "python-dotenv>=1.0.0",
+        "click>=8.1.0",
+        "openpyxl>=3.1.0",
+        "aiohttp>=3.8.0",
+        "asyncio-throttle>=1.0.0",
+    ],
+    extras_require={
+        "dev": [
+            "pytest>=7.2.0",
+            "pytest-asyncio>=0.21.0",
+            "pytest-cov>=4.0.0",
+            "black>=23.0.0",
+            "flake8>=6.0.0",
+            "mypy>=1.0.0",
+            "pre-commit>=3.0.0",
+        ],
+        "inventree": [
+            "inventree>=0.11.0",
+        ],
+    },
+    entry_points={
+        "console_scripts": [
+            "vendor-scraper=vendor_web_scraper.cli:main",
+        ],
+    },
+    python_requires=">=3.10",
+    author="Decoda Platform",
+    author_email="dev@decoda.platform",
+    description="Extensible web scraper for vendor product information with InvenTree integration",
+    long_description_content_type="text/markdown",
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Topic :: Internet :: WWW/HTTP :: Browsers",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
+)
