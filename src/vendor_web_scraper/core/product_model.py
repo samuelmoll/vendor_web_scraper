@@ -91,11 +91,15 @@ class ProductInfo(BaseModel):
     scraper_version: Optional[str] = None
     # TODO[pydantic]: The following keys were removed: `json_encoders`.
     # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-config for more information.
-    model_config = ConfigDict(extra="allow", use_enum_values=True, json_encoders={
-        datetime: lambda v: v.isoformat(),
-        Decimal: lambda v: float(v) if v is not None else None,
-        HttpUrl: lambda v: str(v) if v is not None else None,
-    })
+    model_config = ConfigDict(
+        extra="allow",
+        use_enum_values=True,
+        json_encoders={
+            datetime: lambda v: v.isoformat(),
+            Decimal: lambda v: float(v) if v is not None else None,
+            HttpUrl: lambda v: str(v) if v is not None else None,
+        },
+    )
 
     def to_inventree_format(self) -> Dict[str, Any]:
         """
@@ -108,18 +112,26 @@ class ProductInfo(BaseModel):
             "name": self.title,
             "description": self.specifications.description or self.title,
             "IPN": self.specifications.manufacturer_part_number or self.vendor_part_number,
-            "category": self.specifications.category,
+            "category_name": self.specifications.category,
             "link": str(self.product_url),
-            "notes": f"Scraped from {self.vendor_name} on {self.scraped_at.isoformat()}",
+            "remote_image": str(self.media.primary_image_url) if self.media.primary_image_url else None,
+            "notes": str(
+                self.specifications.detailed_description
+                + f"\n\nScraped from {self.vendor_name} on {self.scraped_at.isoformat()}"
+                if self.specifications.detailed_description
+                else f"Scraped from {self.vendor_name} on {self.scraped_at.isoformat()}"
+            ),
             "default_supplier": self.vendor_name,
             "base_cost": float(self.pricing.unit_price) if self.pricing.unit_price else None,
             "units": self.pricing.price_per_unit or "each",
+            "in_stock": self.availability.in_stock,
             "minimum_stock": self.pricing.minimum_order_quantity or 1,
             "purchaseable": True,
             "active": not self.availability.discontinued,
             "component": True,
-            "trackable": True,
+            "trackable": False,
             "keywords": f"{self.vendor_name},{self.specifications.manufacturer or ''}",
+            "creation_date": self.scraped_at.isoformat(),
         }
 
     def to_excel_row(self) -> Dict[str, Any]:

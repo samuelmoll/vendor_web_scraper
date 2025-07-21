@@ -4,6 +4,8 @@ from pathlib import Path
 import pandas as pd
 import re
 from typing import List, Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor
+import pickle
 
 
 try:
@@ -32,6 +34,8 @@ BOM_FILE = (
 sheet = "BOM by Assembly"
 col = 13
 
+mp.set_start_method("spawn", force=True)
+
 
 def extract_url(comment: str) -> str:
     """
@@ -43,8 +47,12 @@ def extract_url(comment: str) -> str:
     Returns:
         The extracted URL or an empty string if no URL is found.
     """
-    match = re.search(r"(https?://[^\s]+)", comment)
-    return match.group(0) if match else ""
+    try:
+        match = re.search(r"(https?://[^\s]+)", comment)
+        return match.group(0) if match else ""
+    except Exception as e:
+        print(f"Error extracting URL from comment: {e}")
+        return ""
 
 
 def scrape_url(url: str, delay: float = 1.0) -> Optional[Dict[str, Any]]:
@@ -67,7 +75,7 @@ def scrape_url(url: str, delay: float = 1.0) -> Optional[Dict[str, Any]]:
     result = scraper.scrape_product(url)
 
     if result.success:
-        return result.data
+        return result.product_info
     else:
         print(f"❌ Failed to scrape {url}: {result.error_message}")
         return None
@@ -75,14 +83,22 @@ def scrape_url(url: str, delay: float = 1.0) -> Optional[Dict[str, Any]]:
 
 product_info = []
 
-with open(BOM_FILE, "rb") as f:
-    df = pd.read_excel(f, sheet_name=sheet)
-    for comment in df.iloc[:, col - 1].dropna():
-        url = extract_url(comment)
-        if url and "rs-online" in url:
-            info = scrape_url(url)
-            if info:
-                product_info.append(info)
+# Use ThreadPoolExecutor to scrape URLs concurrently
+with ThreadPoolExecutor(max_workers=5) as executor:
+    futures = []
+    with open(BOM_FILE, "rb") as f:
+        df = pd.read_excel(f, sheet_name=sheet)
+        for comment in df.iloc[:, col - 1].dropna():
+            url = extract_url(comment)
+            if url and "rs-online" in url:
+                futures.append(executor.submit(scrape_url, url))
+
+    for future in futures:
+        info = future.result()
+        if info:
+            product_info.append(info)
+
+pickle_file = Path(__file__).parent / "data/scraped_products.pkl"
 
 for product in product_info:
     print(f"Product: {product.get('title', 'N/A')}")

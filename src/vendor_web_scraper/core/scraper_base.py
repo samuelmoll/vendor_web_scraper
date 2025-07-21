@@ -202,6 +202,18 @@ class BaseScraper(ABC):
 
         return None
 
+    def _to_lower_underscore_format(self, text: str) -> str:
+        """
+        Convert text to lower case with underscores.
+
+        Args:
+            text: Input string
+
+        Returns:
+            Lowercase string with spaces replaced by underscores
+        """
+        return text.lower().replace(" ", "_") if text else ""
+
     @abstractmethod
     def scrape_product(self, product_url: str) -> ScrapingResult:
         """

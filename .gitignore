@@ -1,0 +1,7 @@
+*.pyc
+__pychache__
+*.pyo
+*.pyd
+*.pkl
+*.db
+*.sqlite
