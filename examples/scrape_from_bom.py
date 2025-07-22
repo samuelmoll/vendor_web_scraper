@@ -25,6 +25,7 @@ except ImportError as e:
     from vendor_web_scraper.core.scraper_factory import get_scraper
     from vendor_web_scraper import scrapers  # Import to register scrapers
 
+PICKLE_FILE = Path(__file__).parent.parent / "data/scraped_products.pkl"
 BOM_FILE = (
     Path(
         r"C:\Users\samue\Sime Darby Holdings Berhad\Decoda Systems Engineering Team - Documents\CCM\CCM Engineering Documentation\Production Release V3.5\Manufacture and Assembly"
@@ -33,8 +34,6 @@ BOM_FILE = (
 )
 sheet = "BOM by Assembly"
 col = 13
-
-mp.set_start_method("spawn", force=True)
 
 
 def extract_url(comment: str) -> str:
@@ -98,13 +97,6 @@ with ThreadPoolExecutor(max_workers=5) as executor:
         if info:
             product_info.append(info)
 
-pickle_file = Path(__file__).parent / "data/scraped_products.pkl"
-
-for product in product_info:
-    print(f"Product: {product.get('title', 'N/A')}")
-    print(f"Vendor Part Number: {product.get('vendor_part_number', 'N/A')}")
-    print(
-        f"Price: {product.get('pricing', {}).get('unit_price', 'N/A')} {product.get('pricing', {}).get('currency', 'N/A')}"
-    )
-    print(f"Manufacturer: {product.get('specifications', {}).get('manufacturer', 'N/A')}")
-    print("-" * 40)
+pickle_file = Path(__file__).parent.parent / "data/scraped_products.pkl"
+with open(PICKLE_FILE, "wb") as f:
+    pickle.dump(product_info, f)

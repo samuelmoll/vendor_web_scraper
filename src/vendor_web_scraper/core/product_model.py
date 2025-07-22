@@ -5,26 +5,98 @@ Product information data model using Pydantic for validation and serialization.
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
-from pydantic import field_validator, ConfigDict, BaseModel, Field, HttpUrl
+from pydantic import field_validator, ConfigDict, BaseModel, Field, HttpUrl, model_validator
 
 
 class ProductPricing(BaseModel):
     """Product pricing information"""
 
     currency: str = Field(..., description="Currency code (e.g., 'USD', 'EUR')")
-    unit_price: Optional[Decimal] = Field(None, description="Price per unit (No GST)")
-    unit_price_inc_tax: Optional[Decimal] = Field(None, description="Price per unit (GST)")
-    quantity_breaks: Dict[int, Decimal] = Field(default_factory=dict, description="Quantity-based pricing tiers")
-    minimum_order_quantity: Optional[int] = Field(None, description="Minimum order quantity")
-    price_per_unit: Optional[str] = Field(None, description="Unit of pricing (e.g., 'each', 'meter')")
 
-    @field_validator("unit_price", "quantity_breaks", mode="before")
+    # Package-level pricing (what you actually buy)
+    package_price: Optional[Decimal] = Field(
+        None, description="Price per package/sellable unit (e.g., price for 1 bag of 100 screws)"
+    )
+    package_price_inc_tax: Optional[Decimal] = Field(None, description="Package price including tax")
+    package_quantity: Optional[int] = Field(
+        1, description="Number of individual items in one package (e.g., 100 screws per bag)"
+    )
+    package_unit: Optional[str] = Field(
+        None, description="What constitutes one package (e.g., 'bag', 'reel', 'box', 'each')"
+    )
+
+    # Unit-level pricing (cost per individual item)
+    unit_price: Optional[Decimal] = Field(
+        None, description="Price per individual item (calculated: package_price / package_quantity)"
+    )
+    unit_price_inc_tax: Optional[Decimal] = Field(None, description="Unit price including tax")
+
+    # Ordering constraints
+    minimum_order_quantity: Optional[int] = Field(None, description="Minimum number of packages to order")
+    order_multiple: Optional[int] = Field(None, description="Must order in multiples of this many packages")
+
+    # Volume pricing
+    quantity_breaks: Dict[int, Decimal] = Field(
+        default_factory=dict, description="Package quantity-based pricing tiers"
+    )
+
+    @model_validator(mode="before")
     @classmethod
-    def validate_pricing(cls, v):
+    def calculate_derived_fields(cls, values):
+        """Calculate derived pricing fields before validation"""
+        if isinstance(values, dict):
+            # Auto-calculate unit_price if not provided
+            if values.get("unit_price") is None:
+                package_price = values.get("package_price")
+                package_quantity = values.get("package_quantity", 1)
+
+                if package_price is not None and package_quantity and package_quantity > 0:
+                    try:
+                        unit_price = Decimal(str(package_price)) / Decimal(str(package_quantity))
+                        values["unit_price"] = unit_price.quantize(Decimal("0.0001"))
+                    except (ValueError, TypeError, InvalidOperation):
+                        pass  # Let field validator handle the error
+
+            # Auto-calculate unit_price_inc_tax if not provided
+            if values.get("unit_price_inc_tax") is None and values.get("unit_price") is not None:
+                try:
+                    unit_price = Decimal(str(values["unit_price"]))
+                    # Assume 10% GST
+                    values["unit_price_inc_tax"] = (unit_price * Decimal("1.1")).quantize(Decimal("0.01"))
+                except (ValueError, TypeError, InvalidOperation):
+                    pass
+
+        return values
+
+    @field_validator("unit_price", "package_price", "unit_price_inc_tax", "package_price_inc_tax", mode="before")
+    @classmethod
+    def validate_decimal_fields(cls, v):
         """Ensure pricing values are valid decimals"""
-        if isinstance(v, dict):
-            return {k: Decimal(str(val)) if val is not None else None for k, val in v.items()}
-        return Decimal(str(v)) if v is not None else None
+        if v is None:
+            return None
+        try:
+            return Decimal(str(v))
+        except (ValueError, TypeError, InvalidOperation):
+            raise ValueError(f"Invalid decimal value: {v}")
+
+    @field_validator("quantity_breaks", mode="before")
+    @classmethod
+    def validate_quantity_breaks(cls, v):
+        """Ensure quantity breaks are valid"""
+        if not isinstance(v, dict):
+            return {}
+
+        validated_breaks = {}
+        for k, val in v.items():
+            try:
+                quantity = int(k) if not isinstance(k, int) else k
+                price = Decimal(str(val)) if val is not None else None
+                if quantity > 0 and price is not None:
+                    validated_breaks[quantity] = price
+            except (ValueError, TypeError, InvalidOperation):
+                continue  # Skip invalid entries
+
+        return validated_breaks
 
 
 class ProductSpecifications(BaseModel):
@@ -123,9 +195,10 @@ class ProductInfo(BaseModel):
             ),
             "default_supplier": self.vendor_name,
             "base_cost": float(self.pricing.unit_price) if self.pricing.unit_price else None,
-            "units": self.pricing.price_per_unit or "each",
+            "units": self.pricing.packaging or None,
             "in_stock": self.availability.in_stock,
-            "minimum_stock": self.pricing.minimum_order_quantity or 1,
+            "minimum_stock": self.pricing.minimum_order_quantity or 1,  # TODO: Check if this is correct
+            "stock": self.availability.stock_quantity or 0,
             "purchaseable": True,
             "active": not self.availability.discontinued,
             "component": True,

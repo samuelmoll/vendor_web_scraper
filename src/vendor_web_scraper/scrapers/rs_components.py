@@ -307,7 +307,7 @@ class RSComponentsScraper(BaseScraper):
                 price_text = self._extract_text_safe(element)
                 price_value = self._extract_number_from_text(price_text)
                 if price_value:
-                    pricing.unit_price = Decimal(str(price_value))
+                    pricing.package_price = Decimal(str(price_value))
                 break
 
         element = soup.select_one('[data-testid="inc-vat"]')
@@ -315,7 +315,7 @@ class RSComponentsScraper(BaseScraper):
             price_text = self._extract_text_safe(element)
             price_value = self._extract_number_from_text(price_text)
             if price_value:
-                pricing.unit_price_inc_tax = Decimal(str(price_value))
+                pricing.package_price_inc_tax = Decimal(str(price_value))
 
         # Extract quantity breaks
         qty_breaks = {}
@@ -442,13 +442,22 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     scraper = RSComponentsScraper()
 
+    notes = [
+        "Test handling of multiples and minimum order quantities",
+        "Test normal operation with a valid product URL",
+        "Test handling of invalid URLs",
+        "Test handling of different package types and pricing",
+    ]
     # Amphenol Pressure-relief Vent
     product_urls = [
+        r"https://au.rs-online.com/web/p/bootlace-ferrules/0458689",
         r"https://au.rs-online.com/web/p/enclosure-ventilation/1749400",
         r"https://au.mouser.com/ProductDetail/TE-Connectivity-DEUTSCH/W2-P?qs=kRS0rR9cfpVDqz7qI6fFMg%3D%3D",
         r"https://au.rs-online.com/web/p/hook-up-wire/2081069",
     ]
-    for product_url in product_urls:
+    for test_no, product_url in enumerate(product_urls):
+        print(f"Scraping product: {product_url}")
+        print(f"Notes: {notes[test_no]}")
         result = scraper.scrape_product(product_url)
 
         if result.success:
